@@ -7,16 +7,15 @@ Fidha Kunnath Muhammedkutty and Huan-Xiang Zhou (2026), A membrane insertion cod
 
 ### source data
 
-
+Source data for the above publication are found in the folder "Source Data"
 
 ### codes
-Python codes for training and testing is available as:
-Training_codes/AroMIP_training_codes.ipynb
 
-The file aromip.js contains the javascript code for AroMIP here. To run, use the following command: 
+Codes are found in the folder "Codes". The file aromip.js contains the javascript code for AroMIP prediction. To run, use the following command: 
 
-```
 node aromip.js RRNKFGINRTTGNWRGMLQRDLYSGLN
-```
 
-where “RRNKFGINRTTGNWRGMLQRDLYSGLN” is the protein sequence in one-letter representation.
+where “RRNKFGINRTTGNWRGMLQRDLYSGLN” is the protein sequence in one-letter representation. AroMIP is also available as a web server at
+https://zhougroup-uic.github.io/AroMIP/
+
+Python codes for training and testing are in the subdirectory Training_codes under the name AroMIP_training_codes.ipynb.
