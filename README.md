@@ -12,7 +12,7 @@ Source data for the above publication are found in the folder "Source Data"
 
 ### codes
 
-Codes are found in the folder "Codes". The file aromip.js contains the javascript code for AroMIP prediction. To run, use the following command: 
+Codes are found in the folder "Codes". The file aromip.js contains the javascript code for AroMIP prediction. To run, use the following command:
 
 node aromip.js RRNKFGINRTTGNWRGMLQRDLYSGLN
 
