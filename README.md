@@ -3,6 +3,7 @@
 This repository contains source data and codes for the AroMIP project. AroMIP scans a given protein sequence for 9-residue fragments centered on an aromatic residue (F, W, Y), and predicts whether the aromatic sidechain in each fragment inserts into the acyl chain region of membranes. The prediction is based on a mathematical model, where each flanking residue contributes a multiplicative factor to the membrane insertion score of the central aromatic residue. The model was trained on the intrinsically disordered regions of the human proteome.
 
 The AroMIP method is described in:
+
 Fidha Kunnath Muhammedkutty and Huan-Xiang Zhou (2026), A membrane insertion code for intrinsically disordered proteins, bioRxiv.
 
 ### source data
