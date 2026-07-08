@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Aromatic Membrane Insertion Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Roboto", sans-serif;
+      background-color: white;
+    }
+    .page-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h2 {
+      color: #3b3b98;
+    }
+    p.description {
+      font-size: 18px;
+      margin-top: -10px;
+      margin-bottom: 20px;
+    }
+    input, textarea {
+      font-size: 16px;
+      margin-top: 10px;
+      width: 100%;
+      font-family: "Roboto", sans-serif;
+    }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+      justify-content: center;
+    }
+    button {
+      background-color: #6c5ce7;
+      color: white;
+      border: none;
+      padding: 0;
+      height: 42px;
+      line-height: 42px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      font-family: "Roboto", sans-serif;
+      width: 150px;
+      white-space: nowrap;
+    }
+    button:hover {
+      background-color: #4834d4;
+    }
+    table {
+      width: auto;
+      margin: 20px auto 0;
+      border-collapse: collapse;
+      font-family: "Roboto", sans-serif;
+    }
+    th, td {
+      border: 1px solid #999;
+      padding: 10px 16px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      background: #dfe6e9;
+      color: #2d3436;
+    }
+    tr:nth-child(even) {
+      background-color: #f1f2f6;
+    }
+    tr:nth-child(odd) {
+      background-color: #ffffff;
+    }
+    #predict-btn {
+      background-color: #27ae60;
+    }
+    #predict-btn:hover {
+      background-color: #1e8449;
+    }
+    #download-btn,
+    #csv-btn {
+      background-color: #888888;
+    }
+    #download-btn:hover,
+    #csv-btn:hover {
+      background-color: #666666;
+    }
+    #figure-container {
+      margin-top: 30px;
+      text-align: center;
+    }
+    #figure-container img {
+      max-width: 100%;
+      width: 100%;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    #figure-container figcaption {
+      font-style: italic;
+      color: #636e72;
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+<h2>AroMIP: A predictor of membrane insertion by aromatic-centered motifs of intrinsically disordered proteins</h2>
+
+<div id="figure-container">
+  <figure>
+    <img src="images/AroMIP.png" alt="Membrane Protein Diagram">
+  </figure>
+</div>
+
+<section style="margin-top: 20px; background: #f9f9f9; padding: 15px;">
+  <h3>Method at a Glance</h3>
+  <p>
+AroMIP scans a given protein sequence for 9-residue fragments centered on an aromatic residue (F, W, Y), and predicts whether the
+aromatic sidechain in each fragment inserts into the acyl chain region of membranes. The prediction is based on a mathematical model,
+where each flanking residue contributes a multiplicative factor to the membrane insertion score of the central aromatic residue. The model
+was trained on the intrinsically disordered regions of the human proteome.
+  </p>
+  <h3>Reference</h3>
+  <ul>
+  <li>Fidha Kunnath Muhammedkutty, Huan-Xiang Zhou (2026) <strong>A membrane insertion code for intrinsically disordered proteins</strong> <i>eLife</i> <strong>15</strong>:RP111515</li>
+  </ul>
+
+</section>
+
+
+<label for="proteinInput"><strong>Enter Protein Sequence:</strong></label>
+<textarea id="proteinInput" rows="4" placeholder="Example: RRNKFGINRTTGNWRGMLQRDLYSGLN"></textarea>
+
+<div class="btn-row">
+  <button id="predict-btn" onclick="runPrediction()">Predict!</button>
+  <button onclick="clearEntry()">Clear Entry</button>
+  <button onclick="loadExample()">Input Example</button>
+</div>
+
+
+<div id="results"></div>
+
+
+<script>
+// Generalized sigmoid function
+function Sigmoid(Q) {
+  if (Q <= 0) return 0.0;
+  return Q / (1 + Q);
+}
+
+// Predict insertion likelihood for a fragment
+function modelPrediction(fragment, paramData) {
+  const { params } = paramData;
+  let product = 1.0;
+
+  for (let i = 0; i < fragment.length; i++) {
+    if (i === 4) continue;
+    const aa = fragment[i];
+    if (!(aa in params)) continue;
+    product *= Math.max(1e-8, params[aa]);
+  }
+  return { Q: product, score: Sigmoid(product) };
+}
+
+// Scan full protein sequence
+function scanProteinSequence(sequence) {
+  const results = [];
+  const centerAASet = new Set(["F", "W", "Y"]);
+  sequence = sequence.toUpperCase();
+
+  const paramSets = {
+    F: {
+      params: {
+		A : 1.0758068943930996,
+		C : 0.7515081115208946,
+		D : 0.4098861523565832,
+		E : 0.3983119844300048,
+		F : 8.1603925477323100,
+		G : 0.6354157796571205,
+		H : 0.7846691451344266,
+		I : 3.1491216060357460,
+		K : 1.1009251977458419,
+		L : 3.6046544612488423,
+		M : 2.8653319073560772,
+		N : 0.4803481572211203,
+		P : 1.7694984669210487,
+		Q : 0.4933503638424146,
+		R : 1.6585225219886708,
+		S : 0.9301680536402084,
+		T : 1.2417197033480494,
+		V : 2.0355593428760814,
+		W : 5.9063068700289690,
+		Y : 1.8801996532692813
+      }
+    },
+    W: {
+      params: {
+        A : 1.0206442786302903,
+		C : 0.6708211019772945,
+		D : 0.3925586374549908,
+		E : 0.4000948935406380,
+		F : 12.4315596752144760,
+		G : 0.5956514706239270,
+		H : 0.7191760324420514,
+		I : 2.9251386801066905,
+		K : 1.0112142249802383,
+		L : 4.0861358235697650,
+		M : 2.8506481939604393,
+		N : 0.4732539101826204,
+		P : 1.6093272013276745,
+		Q : 0.4767325148760477,
+		R : 1.4493178760361400,
+		S : 0.9053164338059225,
+		T : 1.1254876583549318,
+		V : 2.0417309116628624,
+		W : 11.5571567222502710,
+		Y : 1.9236800785696822
+      }
+    },
+    Y: {
+      params: {
+		A : 0.6230184781505200,
+		C : 0.0133352143216332,
+		D : 0.2214359322487689,
+		E : 0.3402031615640565,
+		F : 2.1219401227664230,
+		G : 0.3466014548722871,
+		H : 0.2072649540790862,
+		I : 1.7025466417820883,
+		K : 0.5832851280298242,
+		L : 1.5741986228306597,
+		M : 0.9020719922136957,
+		N : 0.2975325873058723,
+		P : 0.9559854615896372,
+		Q : 0.4220647091504225,
+		R : 1.1369649667516084,
+		S : 0.4189210011424207,
+		T : 0.5604827271090070,
+		V : 1.0606855747783748,
+		W : 1.7911226699514830,
+		Y : 1.2730210580996608
+      }
+    }
+  };
+
+  for (let i = 4; i < sequence.length - 4; i++) {
+    const fragment = sequence.slice(i - 4, i + 5);
+    const centerAA = fragment[4];
+
+    if (!centerAASet.has(centerAA)) continue;
+
+    const paramData = paramSets[centerAA];
+    const { Q, score } = modelPrediction(fragment, paramData);
+    const classification = score > 0.5 ? 1 : 0;
+
+    results.push({ position: i + 1, centerAA, fragment, Q: Q.toFixed(3), classification, score: score.toFixed(3) });
+  }
+
+  return results;
+}
+
+// Draw insertion propensity profile as inline SVG
+function drawProfile(sequence, results) {
+  const seq       = sequence.toUpperCase();
+  const n         = seq.length;
+  const COLORS    = { F: '#342ee6', W: '#d62728', Y: '#2ca02c' };
+
+  const FSIZE     = 14;   // unified font size for all axis text
+  const leftM     = 55;
+  const rightM    = 20;
+  const topM      = 15;
+  const botM      = 28;
+  const plotH     = 180;
+  const cellW     = Math.max(8, Math.min(20, Math.floor(900 / n)));
+  const plotW     = n * cellW;
+  const svgW      = plotW + leftM + rightM;
+  const svgH      = plotH + topM + botM;
+
+  // Build score lookup keyed by 1-indexed position
+  const scoreMap = {};
+  results.forEach(r => { scoreMap[r.position] = parseFloat(r.score); });
+
+  let s = `<svg id="aromip-profile" xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}">`;
+
+  // Y-axis
+  s += `<line x1="${leftM}" y1="${topM}" x2="${leftM}" y2="${topM+plotH}" stroke="#333" stroke-width="1"/>`;
+
+  // Y-axis ticks + labels
+  [0, 0.5, 1.0].forEach(v => {
+    const y = topM + plotH - v * plotH;
+    s += `<line x1="${leftM-5}" y1="${y}" x2="${leftM}" y2="${y}" stroke="#333" stroke-width="1"/>`;
+    s += `<text x="${leftM-8}" y="${y+4}" text-anchor="end" font-size="${FSIZE}" font-family="monospace" fill="#333">${v}</text>`;
+  });
+
+  // Y-axis label "P"
+  s += `<text transform="rotate(-90)" x="${-(topM + plotH/2)}" y="14" text-anchor="middle" font-size="${FSIZE}" font-family="monospace" fill="#333">P</text>`;
+
+  // X-axis baseline
+  s += `<line x1="${leftM}" y1="${topM+plotH}" x2="${leftM+plotW}" y2="${topM+plotH}" stroke="#333" stroke-width="1"/>`;
+
+  // Dashed cutoff at P = 0.5
+  const y05 = topM + plotH * 0.5;
+  s += `<line x1="${leftM}" y1="${y05}" x2="${leftM+plotW}" y2="${y05}" stroke="#333" stroke-width="1" stroke-dasharray="5,4"/>`;
+
+  // Bars + sequence letters
+  for (let i = 1; i <= n; i++) {
+    const aa   = seq[i - 1];
+    const cx   = leftM + (i - 1) * cellW + cellW / 2;
+    const col  = COLORS[aa] || '#AAAAAA';
+    const bold = COLORS[aa] ? 'bold' : 'normal';
+
+    // Bar (aromatics only)
+    if (scoreMap[i] !== undefined) {
+      const sc   = scoreMap[i];
+      const barH = sc * plotH;
+      const barY = topM + plotH - barH;
+      const bw   = Math.max(2, cellW * 0.40);
+      s += `<rect x="${cx - bw/2}" y="${barY}" width="${bw}" height="${barH}" fill="${col}"/>`;
+    }
+
+    // Sequence letter on X-axis
+    s += `<text x="${cx}" y="${topM+plotH+FSIZE+4}" text-anchor="middle" font-size="${FSIZE}" font-family="monospace" fill="${col}" font-weight="${bold}">${aa}</text>`;
+  }
+
+  s += '</svg>';
+  return s;
+}
+
+let _lastResults = [];
+let _lastSeq     = "";
+
+// Run prediction and render output
+function runPrediction() {
+  const input   = document.getElementById("proteinInput").value.trim().toUpperCase();
+  const results = scanProteinSequence(input);
+  _lastResults  = results;
+  _lastSeq      = input;
+  const output  = document.getElementById("results");
+
+  if (results.length === 0) {
+    output.innerHTML = "<p>No valid 9-residue fragments found centered on F, W, or Y.</p>";
+    return;
+  }
+
+  // Profile plot
+  let html = `<div style="overflow-x:auto; margin-top:25px; text-align:center;">${drawProfile(input, results)}</div>`;
+
+  // Buttons below the plot
+  html += `<div style="text-align:center; margin-top:12px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+    <button id="download-btn" onclick="downloadProfile()">Save PNG</button>
+    <button id="csv-btn" onclick="downloadCSV()">Download CSV</button>
+  </div>`;
+
+  output.innerHTML = html;
+}
+function clearEntry() {
+  document.getElementById("proteinInput").value = "";
+  document.getElementById("results").innerHTML = "";
+}
+
+function loadExample() {
+  const example = "RRNKFGINRTTGNWRGMLQRDLYSGLN";
+  document.getElementById("proteinInput").value = example;
+  runPrediction();
+}
+
+function downloadCSV() {
+  if (!_lastSeq) return;
+  const scoreMap = {};
+  (_lastResults || []).forEach(r => { scoreMap[r.position] = r.score; });
+  let csv = "Position,Residue,P\n";
+  for (let i = 0; i < _lastSeq.length; i++) {
+    const pos = i + 1;
+    const aa  = _lastSeq[i];
+    const p   = scoreMap[pos] !== undefined ? scoreMap[pos] : "0";
+    csv += `${pos},${aa},${p}\n`;
+  }
+  const blob = new Blob([csv], { type: "text/csv" });
+  const link = document.createElement("a");
+  link.download = "aromip_profile.csv";
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function downloadProfile() {
+  const svg = document.getElementById("aromip-profile");
+  if (!svg) return;
+  const w = svg.width.baseVal.value;
+  const h = svg.height.baseVal.value;
+  const svgData = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width  = w * 2;   // 2× for retina-quality PNG
+  canvas.height = h * 2;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(2, 2);
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, w, h);
+  const img = new Image();
+  img.onload = function () {
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    const link = document.createElement("a");
+    link.download = "aromip_profile.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+  img.src = url;
+}
+
+</script>
+
+</div>
+</body>
+</html>
+
